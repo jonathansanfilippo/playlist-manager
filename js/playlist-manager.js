@@ -1,19 +1,14 @@
-/* ===========================
-   XVB Playlist Manager (UI)
-   Requires: playlist-storage-v2.js
-   =========================== */
+
 
 const CHANNEL_CACHE_KEY = "dvb-m^7Y!zR4*P8&kQ3@h";
 
 const SERVER_PLAYLISTS = [
-  { name: "xvb-it nazionali", url: "https://jonathansanfilippo.github.io/xvb-server-lists/xvb-it-nazionali" },
-  { name: "xvb-it regionali", url: "https://jonathansanfilippo.github.io/xvb-server-lists/xvb-it-regionali" },
-  { name: "xvb-it radio",     url: "https://jonathansanfilippo.github.io/xvb-server-lists/xvb-it-radio" }
+  { name: "server1", url: "https://#" }
+  
 ];
 
 const SERVER_PLAYLISTS_2 = [
-  { name: "iptv-org World", url: "https://iptv-org.github.io/iptv/index.m3u" },
-  { name: "Free-TV World",  url: "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8" }
+  { name: "server2", url: "https://#" }
 ];
 
 const $ = (id) => document.getElementById(id);
