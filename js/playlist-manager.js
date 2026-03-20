@@ -1,17 +1,146 @@
-
+/* ===========================
+   XVB Playlist Manager (UI)
+   Requires: playlist-storage-v2.js
+   =========================== */
 
 const CHANNEL_CACHE_KEY = "dvb-m^7Y!zR4*P8&kQ3@h";
 
 const SERVER_PLAYLISTS = [
-  { name: "server1", url: "https://#" }
-  
+  { name: "xvb-it naz", url: "https://jonathansanfilippo.github.io/xvb-server-lists/xvb-it-naz" },
+  { name: "xvb-it reg", url: "https://jonathansanfilippo.github.io/xvb-server-lists/xvb-it-reg" },
+  { name: "xvb-it radio", url: "https://raw.githubusercontent.com/jonathansanfilippo/xvb-server-lists/refs/heads/main/xvb-it-radio" },
+  { name: "xvb-it SamPl", url: "https://raw.githubusercontent.com/jonathansanfilippo/xvb-server-lists/refs/heads/main/xvb-it-Sumpl" }
 ];
 
 const SERVER_PLAYLISTS_2 = [
-  { name: "server2", url: "https://#" }
+  { name: "iptv-org", url: "https://iptv-org.github.io/iptv/index.m3u" },
+  { name: "Free-TV", url: "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8" }
 ];
 
 const $ = (id) => document.getElementById(id);
+
+const ICON = {
+  info: "info",
+  warn: "warning",
+  error: "warning",
+  ok: "check",
+  delete: "delete",
+  copy: "content_copy",
+  antenna: "settings_input_antenna",
+  download: "cloud_download",
+  addLink: "add_link",
+  dot: "lens",
+};
+
+function ms(name, extra = "") {
+  return `<span class="material-symbols-outlined ${extra}".trim()>${name}</span>`;
+}
+
+/* ===========================
+   LIVE LOGS (BroadcastChannel)
+   =========================== */
+
+const LOG_CHANNEL = "xvb_logs";
+let _logBc = null;
+let _logEl = null;
+
+function _logTime() {
+  const d = new Date();
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  const ss = String(d.getSeconds()).padStart(2, "0");
+  return `${hh}:${mm}:${ss}`;
+}
+
+function logUI(msg, level = "info", meta = {}) {
+  try {
+    if (!_logEl) _logEl = document.getElementById("logConsole");
+    if (!_logEl) return;
+
+    const line = document.createElement("div");
+    line.className = `log-line ${level || "info"}`;
+    line.innerHTML = `<span class="t">[${_logTime()}]</span>${String(msg || "")}`;
+
+    _logEl.appendChild(line);
+    _logEl.scrollTop = _logEl.scrollHeight;
+
+    const children = _logEl.children;
+    if (children.length > 300) {
+      for (let i = 0; i < children.length - 300; i++) {
+        _logEl.removeChild(children[0]);
+      }
+    }
+  } catch {}
+}
+
+function logBroadcast(msg, level = "info", meta = {}) {
+  logUI(msg, level, meta);
+  try {
+    if (level === "error") console.error("[PM]", msg, meta);
+    else if (level === "warn") console.warn("[PM]", msg, meta);
+    else console.log("[PM]", msg, meta);
+  } catch {}
+
+  try {
+    if (!_logBc) return;
+    _logBc.postMessage({
+      type: "log",
+      source: "playlist-manager",
+      level,
+      msg: String(msg || ""),
+      meta: meta || {},
+      ts: Date.now()
+    });
+  } catch {}
+}
+
+function initLiveLogs() {
+  try {
+    const chName = document.getElementById("logChannelName");
+    if (chName) chName.textContent = LOG_CHANNEL;
+
+    if ("BroadcastChannel" in window) {
+      _logBc = new BroadcastChannel(LOG_CHANNEL);
+
+      _logBc.onmessage = (ev) => {
+        const d = ev?.data;
+        if (!d || d.type !== "log") return;
+        if (d.source === "playlist-manager") return;
+
+        const prefix = d.source ? `[${d.source}] ` : "";
+        logUI(prefix + (d.msg || ""), d.level || "info", d.meta || {});
+      };
+
+      logUI("Log channel ready.", "ok");
+    } else {
+      logUI("BroadcastChannel not supported in this browser.", "warn");
+    }
+
+    const btnClear = document.getElementById("btnLogClear");
+    const btnCopy = document.getElementById("btnLogCopy");
+
+    if (btnClear) {
+      btnClear.onclick = () => {
+        const el = document.getElementById("logConsole");
+        if (el) el.innerHTML = "";
+        logUI("Logs cleared.", "info");
+      };
+    }
+
+    if (btnCopy) {
+      btnCopy.onclick = async () => {
+        const el = document.getElementById("logConsole");
+        const text = el ? el.innerText : "";
+        try {
+          await navigator.clipboard.writeText(text);
+          logUI("Copied to clipboard.", "ok");
+        } catch {
+          logUI("Clipboard denied by browser.", "warn");
+        }
+      };
+    }
+  } catch {}
+}
 
 function setStatus(id, msg, type = "info") {
   const el = $(id);
@@ -19,6 +148,16 @@ function setStatus(id, msg, type = "info") {
   el.innerHTML = msg;
   el.classList.remove("success", "error", "warn", "info");
   el.classList.add("status", type);
+}
+
+function statusMarkup(type, text) {
+  const iconName =
+    type === "success" ? ICON.ok :
+    type === "warn" ? ICON.warn :
+    type === "error" ? ICON.error :
+    ICON.info;
+
+  return `${ms(iconName)} ${text}`;
 }
 
 function isValidHttpsUrl(input) {
@@ -46,8 +185,36 @@ function broadcastChanged() {
 }
 
 function formatDate(ts) {
-  try { return new Date(ts).toLocaleString(); }
-  catch { return ""; }
+  try {
+    return new Date(ts).toLocaleString();
+  } catch {
+    return "";
+  }
+}
+
+function getSourceMeta(it) {
+  const isFromServer = SERVER_PLAYLISTS.some((s) => s.url === it.url);
+  const isFromServer2 = SERVER_PLAYLISTS_2.some((s) => s.url === it.url);
+
+  const dotClass =
+    it.type === "local"
+      ? "dot-local"
+      : isFromServer2
+        ? "dot-server2"
+        : isFromServer
+          ? "dot-server"
+          : "dot-url";
+
+  const typeLabel =
+    it.type === "local"
+      ? "LOCAL"
+      : isFromServer2
+        ? "THIRD-PARTY"
+        : isFromServer
+          ? "XVB-SERVER"
+          : "URL";
+
+  return { isFromServer, isFromServer2, dotClass, typeLabel };
 }
 
 /* ===========================
@@ -62,12 +229,13 @@ function renderSaved() {
   if (!list) return;
   list.innerHTML = "";
 
-  const items = (pl2_listIndex() || []).slice()
+  const items = (pl2_listIndex() || [])
+    .slice()
     .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
   let channelCount = 0;
 
-  items.forEach(it => {
+  items.forEach((it) => {
     const raw = localStorage.getItem("xvb.playlists.item.v2." + it.id);
     if (!raw) return;
     try {
@@ -82,17 +250,11 @@ function renderSaved() {
   if (totalChannelsEl) totalChannelsEl.textContent = String(channelCount);
 
   if (!items.length) {
-    setStatus("statusList",
-      `<i class="fa-solid fa-circle-info"></i> No playlists saved yet.`,
-      "info"
-    );
+    setStatus("statusList", statusMarkup("info", "No playlists saved yet."), "info");
     return;
   }
 
-  setStatus("statusList",
-    `<i class="fa-solid fa-circle-info"></i> ${items.length} playlist(s) saved.`,
-    "info"
-  );
+  setStatus("statusList", statusMarkup("info", `${items.length} playlist(s) saved.`), "info");
 
   items.forEach((it) => {
     const li = document.createElement("li");
@@ -100,16 +262,15 @@ function renderSaved() {
 
     const del = document.createElement("button");
     del.className = "iconbtn warning";
-    del.innerHTML = '<i class="fa-duotone fa-solid fa-trash"></i>';
+    del.innerHTML = ms(ICON.delete);
+    del.title = `Delete ${it.name}`;
+    del.setAttribute("aria-label", `Delete ${it.name}`);
     del.onclick = () => {
       if (!confirm(`Delete "${it.name}"?`)) return;
       pl2_remove(it.id);
       broadcastChanged();
       renderSaved();
-      setStatus("statusList",
-        `<i class="fa-solid fa-circle-info"></i> Deleted: ${it.name}`,
-        "info"
-      );
+      setStatus("statusList", statusMarkup("info", `Deleted: ${it.name}`), "info");
     };
 
     const left = document.createElement("div");
@@ -118,24 +279,12 @@ function renderSaved() {
     const name = document.createElement("div");
     name.className = "item-name";
 
-    const isFromServer  = SERVER_PLAYLISTS.some(s => s.url === it.url);
-    const isFromServer2 = SERVER_PLAYLISTS_2.some(s => s.url === it.url);
+    const { dotClass, typeLabel } = getSourceMeta(it);
 
-    const dotClass =
-      it.type === "local" ? "dot-local" :
-      isFromServer2 ? "dot-server2" :
-      isFromServer  ? "dot-server"  :
-      "dot-url";
-
-    const typeLabel =
-      it.type === "local" ? "LOCAL" :
-      isFromServer2 ? "THIRD-PARTY" :
-      isFromServer  ? "XVB-SERVER" :
-      "URL";
-
-    name.innerHTML =
-      `<i class="fa-solid fa-circle ${dotClass}"></i>
-       <span style="">${it.name || "(no name)"}</span>`;
+    name.innerHTML = `
+      <span class="material-symbols-outlined dot-status ${dotClass}">${ICON.dot}</span>
+      <span>${it.name || "(no name)"}</span>
+    `;
 
     const meta = document.createElement("div");
     meta.className = "item-meta";
@@ -152,7 +301,7 @@ function renderSaved() {
 }
 
 /* ===========================
-   SERVER LIST RENDER (icon + color per list)
+   SERVER LIST RENDER
    =========================== */
 
 function renderServer(
@@ -161,7 +310,6 @@ function renderServer(
   data,
   label = "XVB-SERVER",
   dotClass = "dot-server",
-  iconClass = "fa-duotone fa-solid fa-cloud-arrow-down",
   btnExtraClass = "primary"
 ) {
   const ul = $(listId);
@@ -174,11 +322,11 @@ function renderServer(
 
     const btn = document.createElement("button");
     btn.className = `iconbtn ${btnExtraClass}`.trim();
-    btn.innerHTML = `<i class="${iconClass}"></i>`;
+    btn.innerHTML = ms(ICON.download);
 
     btn.onclick = async () => {
-      // spinner
-      btn.innerHTML = `<i class="fa-duotone fa-solid fa-spinner-third fa-spin"></i>`;
+      btn.innerHTML = ms("progress_activity");
+      btn.disabled = true;
 
       const res = pl2_addUrl(pl.url, pl.name);
 
@@ -195,27 +343,29 @@ function renderServer(
           itemData.m3uText = text;
           localStorage.setItem(itemKey, JSON.stringify(itemData));
 
-          setStatus(statusId, `<i class="fa-solid fa-check"></i> ${pl.name} saved.`, "success");
+          setStatus(statusId, statusMarkup("success", `${pl.name} saved.`), "success");
         } catch {
           try { pl2_remove(res.id); } catch {}
-          setStatus(statusId, `<i class="fa-solid fa-triangle-exclamation"></i> Invalid playlist.`, "error");
+          setStatus(statusId, statusMarkup("error", "Invalid playlist."), "error");
         }
 
-        // restore icon
-        btn.innerHTML = `<i class="${iconClass}"></i>`;
+        btn.innerHTML = ms(ICON.download);
+        btn.disabled = false;
         broadcastChanged();
         renderSaved();
       } else {
-        setStatus(statusId, `<i class="fa-solid fa-circle-exclamation"></i> Already saved.`, "warn");
-        btn.innerHTML = `<i class="${iconClass}"></i>`;
+        setStatus(statusId, statusMarkup("warn", "Already saved."), "warn");
+        btn.innerHTML = ms(ICON.download);
+        btn.disabled = false;
       }
     };
 
     const left = document.createElement("div");
     left.className = "item-left";
-    left.innerHTML =
-      `<div class="item-name">${pl.name}</div>
-       <div class="item-meta"><span class="pill ${dotClass}">${label}</span></div>`;
+    left.innerHTML = `
+      <div class="item-name">${pl.name}</div>
+      <div class="item-meta"><span class="pill ${dotClass}">${label}</span></div>
+    `;
 
     li.appendChild(btn);
     li.appendChild(left);
@@ -229,7 +379,6 @@ function renderServer(
 
 function wireUI() {
   const btnAddUrl = $("btnAddUrl");
-  const btnAddFile = $("btnAddFile");
   const btnClearAll = $("btnClearAll");
   const fileInput = $("fileInput");
 
@@ -238,28 +387,23 @@ function wireUI() {
       if (fileInput.files && fileInput.files.length > 0) {
         const file = fileInput.files[0];
         const reader = new FileReader();
+
         reader.onload = () => {
           const res = pl2_addLocal(file.name, reader.result);
           if (res.ok) {
             fileInput.value = "";
             broadcastChanged();
             renderSaved();
-            setStatus("statusFile",
-              `<i class="fa-solid fa-check"></i> Saved: ${file.name}`,
-              "success"
-            );
+            setStatus("statusFile", statusMarkup("success", `Saved: ${file.name}`), "success");
           } else {
-            setStatus("statusFile",
-              `<i class="fa-solid fa-circle-exclamation"></i> Already saved.`,
-              "warn"
-            );
+            setStatus("statusFile", statusMarkup("warn", "Already saved."), "warn");
           }
         };
-        reader.onerror = () =>
-          setStatus("statusFile",
-            `<i class="fa-solid fa-triangle-exclamation"></i> File read failed.`,
-            "error"
-          );
+
+        reader.onerror = () => {
+          setStatus("statusFile", statusMarkup("error", "File read failed."), "error");
+        };
+
         reader.readAsText(file);
       }
     });
@@ -271,18 +415,18 @@ function wireUI() {
       const url = (urlInput?.value || "").trim();
 
       if (!url) {
-        setStatus("statusUrl",
-          `<i class="fa-solid fa-circle-exclamation"></i> Enter a URL first.`,
-          "warn"
-        );
+        setStatus("statusUrl", statusMarkup("warn", "Enter a URL first."), "warn");
         return;
       }
 
       if (!isValidHttpsUrl(url)) {
-        setStatus("statusUrl",
-          `<i class="fa-solid fa-triangle-exclamation"></i> Only https:// URLs allowed.`,
-          "error"
-        );
+        setStatus("statusUrl", statusMarkup("error", "Only https:// URLs allowed."), "error");
+        return;
+      }
+
+      const noQuery = url.toLowerCase().split("?")[0];
+      if (!noQuery.endsWith(".m3u") && !noQuery.endsWith(".m3u8")) {
+        setStatus("statusUrl", statusMarkup("error", "URL must end with .m3u or .m3u8."), "error");
         return;
       }
 
@@ -303,34 +447,20 @@ function wireUI() {
 
           if (urlInput) urlInput.value = "";
 
-          setStatus("statusUrl",
-            `<i class="fa-solid fa-check"></i> Playlist saved.`,
-            "success"
-          );
-
+          setStatus("statusUrl", statusMarkup("success", "Playlist saved."), "success");
           broadcastChanged();
           renderSaved();
         } catch {
           try { pl2_remove(res.id); } catch {}
           broadcastChanged();
           renderSaved();
-
-          setStatus("statusUrl",
-            `<i class="fa-solid fa-triangle-exclamation"></i> Invalid M3U playlist.`,
-            "error"
-          );
+          setStatus("statusUrl", statusMarkup("error", "Invalid M3U playlist."), "error");
         }
-
       } else {
-        setStatus("statusUrl",
-          `<i class="fa-solid fa-circle-exclamation"></i> Already saved.`,
-          "warn"
-        );
+        setStatus("statusUrl", statusMarkup("warn", "Already saved."), "warn");
       }
     };
   }
-
-  if (btnAddFile) btnAddFile.onclick = () => fileInput && fileInput.click();
 
   if (btnClearAll) {
     btnClearAll.onclick = (e) => {
@@ -339,10 +469,7 @@ function wireUI() {
       pl2_clearAll();
       broadcastChanged();
       renderSaved();
-      setStatus("statusList",
-        `<i class="fa-solid fa-circle-info"></i> All playlists removed.`,
-        "info"
-      );
+      setStatus("statusList", statusMarkup("info", "All playlists removed."), "info");
     };
   }
 }
@@ -352,27 +479,26 @@ function wireUI() {
    =========================== */
 
 function initManager() {
+  initLiveLogs();
+  logBroadcast("Playlist Manager started", "ok");
+
   wireUI();
 
-  // SERVER 1 (cloud, colore primary)
   renderServer(
     "serverPlaylistList",
     "statusServer",
     SERVER_PLAYLISTS,
     "XVB-SERVER",
     "dot-server",
-    "fa-duotone fa-solid fa-cloud-arrow-down",
     "primary"
   );
 
-  // SERVER 2 / THIRD-PARTY  fa-duotone fa-solid fa-cloud-question"></i>
   renderServer(
     "serverPlaylistList2",
     "statusServer2",
     SERVER_PLAYLISTS_2,
     "THIRD-PARTY",
     "dot-server2",
-    "fa-duotone fa-solid fa-cloud-question",
     "server2"
   );
 
@@ -381,17 +507,12 @@ function initManager() {
 
 document.addEventListener("DOMContentLoaded", initManager);
 
-
-
-
-
 /* ===========================
    EPG STATUS + Download
    =========================== */
 
 document.addEventListener("DOMContentLoaded", async () => {
-
-  const icon  = document.getElementById("epg-status-icon");
+  const icon = document.getElementById("epg-status-icon");
   const shaEl = document.getElementById("epg-commit-sha");
   const dateEl = document.getElementById("epg-commit-date");
   const msgEl = document.getElementById("epg-commit-msg");
@@ -403,24 +524,19 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   if (!icon) return;
 
-  // CHECKING
   icon.style.color = "rgb(253, 187, 102)";
   icon.title = "Checking EPG status...";
   icon.classList.remove("epg-online");
 
   if (msgEl) {
     msgEl.className = "status warn";
-    msgEl.innerHTML = `
-      <i class="fa-solid fa-triangle-exclamation"></i>
-      Checking EPG build status...
-    `;
+    msgEl.innerHTML = `${ms(ICON.warn)} Checking EPG build status...`;
   }
 
   try {
-    // Last commit
     const commitRes = await fetch(
       `https://api.github.com/repos/${REPO}/commits?path=${encodeURIComponent(XML_PATH)}&sha=${encodeURIComponent(BRANCH)}&per_page=1`,
-      { headers: { "Accept": "application/vnd.github+json" } }
+      { headers: { Accept: "application/vnd.github+json" } }
     );
 
     if (!commitRes.ok) throw new Error("GitHub API error");
@@ -430,15 +546,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (commit) {
       if (shaEl) shaEl.textContent = commit.sha.slice(0, 7);
-
-      const iso =
-        commit.commit?.committer?.date ||
-        commit.commit?.author?.date;
-
+      const iso = commit.commit?.committer?.date || commit.commit?.author?.date;
       if (dateEl) dateEl.textContent = new Date(iso).toLocaleString("en-GB");
     }
 
-    // Check XML reachable
     const xmlCheck = await fetch(XML_URL, { method: "HEAD", cache: "no-store" });
 
     if (xmlCheck.ok) {
@@ -448,15 +559,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       if (msgEl) {
         msgEl.className = "status success";
-        msgEl.innerHTML = `
-          <i class="fa-solid fa-check"></i>
-          EPG build completed successfully.
-        `;
+        msgEl.innerHTML = `${ms(ICON.ok)} EPG build completed successfully.`;
       }
     } else {
       throw new Error("XML not reachable");
     }
-
   } catch (err) {
     icon.style.color = "#f85149";
     icon.classList.remove("epg-online");
@@ -464,17 +571,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (msgEl) {
       msgEl.className = "status error";
-      msgEl.innerHTML = `
-        <i class="fa-solid fa-triangle-exclamation"></i>
-        EPG build failed or XML unavailable.
-      `;
+      msgEl.innerHTML = `${ms(ICON.error)} EPG build failed or XML unavailable.`;
     }
 
     console.error("EPG status error:", err);
   }
 });
 
-// Download button
 document.getElementById("btnDownloadEpg")?.addEventListener("click", () => {
   window.open("https://github.com/jonathansanfilippo/xvb-epg", "_blank");
 });

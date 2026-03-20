@@ -6,8 +6,20 @@
   <title>XVB - Playlist Manager</title>
 
   <link rel="icon" type="image/png" href="assets/icon.jpg">
-  <link rel="stylesheet" href="https://site-assets.fontawesome.com/releases/v7.2.0/css/all.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,1,0" />
   <link rel="stylesheet" href="css/manager.css">
+
+  <style>
+    .dot-icon,
+    .dot-status {
+      font-size: 11px;
+      line-height: 1;
+      vertical-align: middle;
+      display: inline-block;
+      transform: translateY(-1px);
+      font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24;
+    }
+  </style>
 </head>
 
 <body>
@@ -18,7 +30,7 @@
         <div class="brandline">
           <a href="index.html" class="logo-area" style="text-decoration:none; color:inherit;">
             <img style="padding-right:5px;" src="assets/icon.jpg" alt="XVB" width="50" height="50">
-            <span class="logo">v0.9 beta</span>
+            <span class="logo">v1.1</span>
           </a>
         </div>
 
@@ -33,9 +45,12 @@
 
       <!-- SERVER 1 -->
       <div class="section">
-        <div class="label"><i class="fa-solid fa-circle dot-server"></i> Download from XVB server</div>
+        <div class="label">
+          <span class="material-symbols-outlined dot-icon dot-server">lens</span>
+          Download from XVB server
+        </div>
         <div class="sub">
-          <i class="fa-duotone fa-solid fa-circle-info"></i> Verified playlists for improved compatibility.
+          <span class="material-symbols-outlined">info</span> Verified playlists for improved compatibility.
         </div>
         <div class="sub" style="margin:20px 0 10px 2px; max-width:none;"></div>
 
@@ -43,11 +58,14 @@
         <div class="status" id="statusServer"></div>
       </div>
 
-      <!-- SERVER 2 (NEW) -->
+      <!-- SERVER 2 -->
       <div class="section">
-        <div class="label"><i class="fa-solid fa-circle dot-server2"></i> Download from other server</div>
+        <div class="label">
+          <span class="material-symbols-outlined dot-icon dot-server2">lens</span>
+          Download from other server
+        </div>
         <div class="sub">
-          <i class="fa-duotone fa-solid fa-circle-info"></i> Unverified playlists – lower compatibility.
+          <span class="material-symbols-outlined">info</span> Unverified playlists – lower compatibility.
         </div>
         <div class="sub" style="margin:20px 0 10px 2px; max-width:none;"></div>
 
@@ -57,14 +75,18 @@
 
       <!-- ADD URL -->
       <div class="section">
-        <div class="label"><i class="fa-solid fa-circle dot-url"></i> Add URL</div>
-         <div class="sub">
-          <i class="fa-duotone fa-solid fa-circle-info"></i> Direct links only. No auto-updating playlists.
-        </div> <div class="sub" style="margin:20px 0 10px 2px; max-width:none;"></div>
+        <div class="label">
+          <span class="material-symbols-outlined dot-icon dot-url">lens</span>
+          Add URL
+        </div>
+        <div class="sub">
+          <span class="material-symbols-outlined">info</span> Direct links only. No auto-updating playlists.
+        </div>
+        <div class="sub" style="margin:20px 0 10px 2px; max-width:none;"></div>
         <div class="row">
           <input class="input" id="urlInput" type="text" placeholder="https://server.com/path/playlist.m3u">
-          <button class="iconbtn " id="btnAddUrl" title="Add URL">
-            <i class="fa-duotone fa-solid fa-file-circle-plus"></i>
+          <button class="iconbtn" id="btnAddUrl" title="Add URL" aria-label="Add URL">
+            <span class="material-symbols-outlined">add_link</span>
           </button>
         </div>
         <div class="status" id="statusUrl"></div>
@@ -72,12 +94,16 @@
 
       <!-- ADD FILE -->
       <div class="section">
-        <div class="label"><i class="fa-solid fa-circle dot-local"></i> Add file</div>
-         <div class="sub">
-          <i class="fa-duotone fa-solid fa-circle-info"></i> M3U format required.
-        </div> <div class="sub" style="margin:20px 0 10px 2px; max-width:none;"></div>
+        <div class="label">
+          <span class="material-symbols-outlined dot-icon dot-local">lens</span>
+          Add file
+        </div>
+        <div class="sub">
+          <span class="material-symbols-outlined">info</span> M3U format required.
+        </div>
+        <div class="sub" style="margin:20px 0 10px 2px; max-width:none;"></div>
         <div class="row">
-          <input class="file empty" id="fileInput" type="file" accept=".m3u">
+          <input class="file empty" id="fileInput" type="file" accept=".m3u, .m3u8">
         </div>
         <div class="status" id="statusFile"></div>
       </div>
@@ -86,50 +112,76 @@
       <div class="section">
         <div class="h1">Saved playlists</div>
         <div class="sub">
-          <i class="fa-duotone fa-solid fa-circle-info"></i> Manage Stored Playlists.
-        </div> <div class="sub" style="margin:20px 0 10px 2px; max-width:none;"></div>
+          <span class="material-symbols-outlined">info</span> Manage Stored Playlists.
+        </div>
+        <div class="sub" style="margin:20px 0 10px 2px; max-width:none;"></div>
         <ul class="list" id="playlistList"></ul>
         <div class="status" id="statusList"></div>
       </div>
 
       <!-- EPG STATUS -->
-<div class="section">
+      <div class="section">
+        <div class="epg-header">
+          <div class="h1">EPG Guide</div>
+          <div class="sub">
+            <span class="material-symbols-outlined">info</span> Active EPG Guides.
+          </div>
+          <div class="sub" style="margin:20px 0 10px 2px; max-width:none;"></div>
+          <button id="btnDownloadEpg" class="iconbtn" title="EPG Guide" aria-label="EPG Guide">
+            <span class="material-symbols-outlined">cloud_download</span>
+          </button>
+        </div>
 
-  <div class="epg-header">
-    <div class="h1">EPG Guide</div>
-    <div class="sub">
-          <i class="fa-duotone fa-solid fa-circle-info"></i> Active EPG Guides.
-        </div> <div class="sub" style="margin:20px 0 10px 2px; max-width:none;"></div>
-    <button id="btnDownloadEpg"
-            class="iconbtn"
-            title="EPG Guide">
- <i class="fa-brands fa-github"></i>
-    </button>
-  </div>
+        <div class="sub"></div>
+        <div class="item">
+          <div class="item-left">
+            <div class="item-name">
+              <span id="epg-status-icon" class="material-symbols-outlined dot-status">lens</span>
+              <span>IT-EPG SHA: </span><span id="epg-commit-sha"></span>
+            </div>
 
-  <div class="sub"></div>
-<div class="item">
-  <div class="item-left">
-    <div class="item-name">
-      <i id="epg-status-icon" class="fa-solid fa-circle"></i>
-      <span>IT-EPG SHA: </span><span id="epg-commit-sha"></span>
+            <div class="item-meta">
+              <span class="pill dot-server">COMMIT [BOT]</span>
+              <span class="pill"><span id="epg-commit-date">--</span></span>
+            </div>
+          </div>
+        </div>
+        <div class="status info">
+          <span id="epg-commit-msg"></span>
+        </div>
+      </div>
+
+      <!-- LOGS -->
+      <section class="logwrap" id="logWrap">
+        <div class="log-inner">
+          <div class="section log-section">
+            <div class="log-head">
+              <div>
+                <div class="h1">Live Logs</div>
+                <div class="sub">
+                  <span class="material-symbols-outlined">info</span> Real-time logs via BroadcastChannel.
+                </div>
+              </div>
+
+              <div class="log-actions">
+                <button class="iconbtn" id="btnLogClear" title="Clear logs" aria-label="Clear logs">
+                  <span class="material-symbols-outlined">delete</span>
+                </button>
+                <button class="iconbtn" id="btnLogCopy" title="Copy logs" aria-label="Copy logs">
+                  <span class="material-symbols-outlined">content_copy</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="log-console" id="logConsole" aria-live="polite"></div>
+            <div class="status info" id="logStatus">
+              <span class="material-symbols-outlined">settings_input_antenna</span>
+              Listening on <span class="accent" id="logChannelName">xvb_logs</span>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
-
-    <div class="item-meta">
-      <span class="pill dot-server">COMMIT [BOT]</span>
-      <span class="pill"><span id="epg-commit-date">--</span></span>
-    </div>
-  </div>
-</div>
-  <div class="status info">
-    <span id="epg-commit-msg"></span>
-  </div>
-
-</div>
-
-    </div>
-
-    <br><br>
   </div>
 
   <div class="reset">
@@ -137,7 +189,7 @@
       <div class="section">
         <div class="h1">Reset & Maintenance</div>
         <div class="sub-reset warning">
-          <i class="fa-duotone fa-triangle-exclamation"></i>
+          <span class="material-symbols-outlined">warning</span>
           Remove stored playlists and cached channels to resolve issues or reset the player.
         </div>
         <div class="legal">
@@ -146,9 +198,8 @@
         </div>
 
         <div style="margin: 30px 0px 30px 0px; max-width: 600px;">
-          <button id="btnClearAll" class="iconbtn btnClearAll danger">
-            <i class="fa-duotone fa-solid fa-trash-can-xmark"></i>
-            
+          <button id="btnClearAll" class="iconbtn btnClearAll danger" aria-label="Reset">
+            <span class="material-symbols-outlined">delete</span>
           </button>
           <span class="resetlabel">Reset</span>
         </div>
@@ -175,19 +226,11 @@
         <span>MIT License © 2026 Jonathan Sanfilippo</span>
       </div>
 
-      <div class="footer-left">
-        <svg class="footer-logo" viewBox="0, 0, 400,168.90848952590957">
-          <svg id="svg" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="400" height="168.90848952590957" viewBox="0, 0, 400,168.90848952590957"><g id="svgg"><path id="path0" d="M314.099 3.218 C 313.939 3.478,314.159 3.645,314.376 3.428 C 314.497 3.307,314.500 3.213,314.384 3.141 C 314.290 3.083,314.162 3.117,314.099 3.218 M102.803 4.028 C 102.745 4.122,102.780 4.250,102.880 4.313 C 103.140 4.473,103.307 4.253,103.091 4.037 C 102.969 3.915,102.875 3.912,102.803 4.028 M32.601 4.874 C 32.601 4.953,31.632 5.072,30.448 5.137 C 25.516 5.410,28.224 5.574,37.635 5.574 C 43.964 5.574,47.297 5.516,47.297 5.405 C 47.297 5.223,47.098 5.181,46.486 5.231 C 46.272 5.249,45.992 5.176,45.863 5.069 C 45.695 4.929,45.536 4.925,45.292 5.056 C 44.833 5.301,43.653 5.284,43.236 5.025 C 42.963 4.856,42.869 4.856,42.764 5.025 C 42.597 5.293,41.250 5.267,40.794 4.988 C 40.343 4.713,38.810 4.678,37.666 4.917 C 36.267 5.210,35.119 5.265,34.862 5.051 C 34.726 4.938,34.396 4.905,34.052 4.969 C 33.715 5.032,33.427 5.005,33.365 4.904 C 33.235 4.694,32.601 4.670,32.601 4.874" stroke="none" fill="#dcdbdc" fill-rule="evenodd"></path></g></svg>
-        </svg>
-      </div>
-
-      <div class="">
-        
-      </div>
+      <div class="footer-left"></div>
+      <div class=""></div>
     </div>
   </footer>
 
-  <!-- IMPORTANT: storage FIRST, manager AFTER -->
   <script src="js/playlist-storage-v2.js"></script>
   <script src="js/playlist-manager.js"></script>
   <script src="js/epgdata.js"></script>
